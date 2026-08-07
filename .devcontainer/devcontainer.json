@@ -1,0 +1,91 @@
+{
+    "name": "ROSflight + HoloOcean Sim Devsy Workspace",
+
+    // Builds the ROSflight base image (osrf/ros:${ROS_DISTRO}-desktop) with
+    // an added "Unreal runtime dependencies" layer (glvnd/Vulkan/X11) that
+    // replicates the userspace of Epic's official runtime container image, so
+    // the prebuilt HoloOcean world binaries can render. (Epic's own runtime
+    // image is Ubuntu 20.04-only and cannot host ROS 2 Humble/Jazzy -- see
+    // the Dockerfile header.) No ghcr.io login is needed to build this image;
+    // the only Epic-gated step is the HoloOcean clone at postCreate time.
+    //
+    // Change the ROS distro in exactly one place: the ROS_DISTRO build arg
+    // below. It propagates to the Dockerfile ENV and to the setup scripts.
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "ROS_DISTRO": "humble"
+        }
+    },
+
+    // Layer Node.js (needed for the Codex CLI / npm) and the GitHub CLI on top
+    // of the base image, the same way the reference template does. The GitHub
+    // CLI doubles as the git credential helper for cloning the (Epic-gated)
+    // HoloOcean repository: run `gh auth login` in the container if the clone
+    // fails during setup.
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+
+    "remoteUser": "rosflight",
+
+    // --gpus=all: NVIDIA GPU passthrough for the HoloOcean worlds (requires
+    //   the NVIDIA Container Toolkit on the host).
+    // network=host and ipc=host: host access for ROS 2 discovery (DDS) and
+    //   shared-memory transport; HoloOcean's client<->world shared memory also
+    //   benefits. These assume a LOCAL Docker provider (Devsy); some remote
+    //   providers do not support them (see README).
+    "runArgs": [
+        "--gpus=all",
+        "--network=host",
+        "--ipc=host"
+    ],
+
+    // X11 forwarding so GUI tools (RViz, PlotJuggler, HoloOcean world windows)
+    // can display on the host. On the host you may need: xhost +local:docker
+    // NVIDIA_DRIVER_CAPABILITIES=all makes the toolkit expose graphics/Vulkan
+    // (not just compute) to the container.
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "QT_X11_NO_MITSHM": "1",
+        "NVIDIA_DRIVER_CAPABILITIES": "all"
+    },
+    "mounts": [
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+    ],
+
+    "customizations": {
+        "vscode": {
+            // bash is the default shell (see the useradd --shell in the
+            // Dockerfile); colcon's install/setup.bash only works under bash.
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-python.python",
+                "ms-iot.vscode-ros",
+                "anthropic.claude-code",
+                "openai.codex"
+            ]
+        }
+    },
+
+    // Installs Claude Code + Codex and wires up ROS sourcing (fast,
+    // synchronous), then launches the heavy setup — ROSflight clone/rosdep/
+    // colcon build plus the HoloOcean clone and multi-GB world download
+    // (Land package — the ROSflight-flyable worlds) — DETACHED via
+    // scripts/setup_all.sh. The heavy setup must not
+    // run inside this hook: it would block `workspace up` for a very long
+    // time (and orchestrators may kill long-running hooks), and the gated
+    // HoloOcean clone needs GitHub credentials that typically only appear
+    // once a VS Code window attaches (its git askpass) — after this hook has
+    // already run. The detached job waits for credentials instead.
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+
+    // Self-healing: on every container start, relaunch the detached setup if
+    // any phase (workspace build / HoloOcean download) has not completed yet.
+    // No-op once setup is done. Check progress with: setup-status
+    "postStartCommand": "bash .devcontainer/on_start.sh"
+}
