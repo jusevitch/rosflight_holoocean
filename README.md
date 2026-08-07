@@ -5,6 +5,8 @@ A [devcontainer](https://containers.dev/) for running ROSflight simulations in t
 This repo contains **no Unreal Engine or HoloOcean code or binaries** — only
 build recipes. Licensed material is pulled at build/setup time using your Epic Games credentials. See [Licensing notes](#licensing-notes).
 
+The devcontainer in this repo only supports running existing HoloOcean worlds. It does **NOT** support building and developing new worlds. 
+
 ## Prerequisites
 
 > [!IMPORTANT]  
