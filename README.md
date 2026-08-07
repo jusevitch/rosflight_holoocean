@@ -156,10 +156,7 @@ into the container, run `nvidia-smi` and `vulkaninfo --summary` inside it.
 
 ## Troubleshooting
 
-Frankly, just ask any capable AI agent for help. As of 2026 this will probably
-be more effective than outdated instructions in this README.md.
-
-You can point your AI agent to the instructions on the
+We recommend using a capable AI agent to help debug issues. You can point your AI agent to the instructions on the
 [ROSflight website](https://docs.rosflight.org/latest/user-guide/overview/) and
 the [HoloOcean docs](https://byu-holoocean.github.io/holoocean-docs/) for
 context.
